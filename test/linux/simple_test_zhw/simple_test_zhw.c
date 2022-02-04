@@ -97,12 +97,14 @@ void simpletest(char *ifname)
       printf("slave1 未切换到Safe_OP模式\n");
    }
 
-     //配置DC(分布式时钟)
+   //配置DC(分布式时钟)
+   printf("Before ec_DCtime: 0x%016llx\n", ec_DCtime);
    uint16 flag1 = ec_configdc();
    if(flag1==1){
       printf("已找到:带DC的从站.\n");
    }
-   //ec_dcsync0(1,TRUE,2000000,0);
+   ec_dcsync0(1,TRUE,2000000,0);
+   printf("After ec_DCtime: 0x%016llx\n", ec_DCtime);
 
    //output 和 input 的所需的字节数
    oloop = ec_slave[1].Obytes;
@@ -243,7 +245,7 @@ void simpletest(char *ifname)
       }
 
       //5000us = 5ms, 重复10000为 50s
-      osal_usleep(1500);
+      osal_usleep(2000);
 
    }
 
