@@ -13,3 +13,8 @@ set(SOURCES ewdl_csv2.c)
 add_executable(ewdl_csv2 ${SOURCES})
 target_link_libraries(ewdl_csv2 soem)
 install(TARGETS ewdl_csv2 DESTINATION bin)
+
+set(SOURCES ewdl_pv2.c)
+add_executable(ewdl_pv2 ${SOURCES})
+target_link_libraries(ewdl_pv2 soem)
+install(TARGETS ewdl_pv2 DESTINATION bin)

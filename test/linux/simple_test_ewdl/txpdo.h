@@ -182,15 +182,11 @@ typedef struct TxPDO2
   uint16_t status_word;
   int32_t position_actual_value;
   int32_t torque_actual_value;
-  //int32_t position_diff;  //位置偏差
   int8_t mode_of_operation_display;
   
-  //int32_t follow_error_actual_value;
   uint16_t touch_probe_status;
   int32_t touch_probe_pos1_pos_value;
-  //int32_t touch_probe_pos1_neg_value;
   int32_t touch_probe_pos2_pos_value;
-  //int32_t touch_probe_pos2_neg_value;
   uint32_t digital_inputs;
 
 } TxPDO2t;
@@ -200,14 +196,10 @@ void TxPDO2_read_from_addr(TxPDO2t *tPDO, uint8_t *data_ptr)
   tPDO->status_word = 0x0000;
   tPDO->position_actual_value = 0x00000000;
   tPDO->torque_actual_value = 0x00000000;
-  //tPDO->velocity_actual_value = 0x00000000;
   tPDO->mode_of_operation_display = 0x00;
-  //tPDO->follow_error_actual_value = 0x00000000;
   tPDO->touch_probe_status = 0x0000;
   tPDO->touch_probe_pos1_pos_value = 0x00000000;
-  //tPDO->touch_probe_pos1_neg_value = 0x00000000;
   tPDO->touch_probe_pos2_pos_value = 0x00000000;
-  //tPDO->touch_probe_pos2_neg_value = 0x00000000;
   tPDO->digital_inputs = 0x00000000;
 
   tPDO->error_code |= (0x00FF & *data_ptr++) << 0;
@@ -228,11 +220,6 @@ void TxPDO2_read_from_addr(TxPDO2t *tPDO, uint8_t *data_ptr)
 
   tPDO->mode_of_operation_display |= (0xFF & *data_ptr++) << 0;
 
-  // tPDO->follow_error_actual_value |= (0x000000FF & *data_ptr++) << 0;
-  // tPDO->follow_error_actual_value |= (0x000000FF & *data_ptr++) << 8;
-  // tPDO->follow_error_actual_value |= (0x000000FF & *data_ptr++) << 16;
-  // tPDO->follow_error_actual_value |= (0x000000FF & *data_ptr++) << 24;
-
   tPDO->touch_probe_status |= (0x00FF & *data_ptr++) << 0;
   tPDO->touch_probe_status |= (0x00FF & *data_ptr++) << 8;
 
@@ -241,20 +228,10 @@ void TxPDO2_read_from_addr(TxPDO2t *tPDO, uint8_t *data_ptr)
   tPDO->touch_probe_pos1_pos_value |= (0x000000FF & *data_ptr++) << 16;
   tPDO->touch_probe_pos1_pos_value |= (0x000000FF & *data_ptr++) << 24;
 
-  // tPDO->touch_probe_pos1_neg_value |= (0x000000FF & *data_ptr++) << 0;
-  // tPDO->touch_probe_pos1_neg_value |= (0x000000FF & *data_ptr++) << 8;
-  // tPDO->touch_probe_pos1_neg_value |= (0x000000FF & *data_ptr++) << 16;
-  // tPDO->touch_probe_pos1_neg_value |= (0x000000FF & *data_ptr++) << 24;
-
   tPDO->touch_probe_pos2_pos_value |= (0x000000FF & *data_ptr++) << 0;
   tPDO->touch_probe_pos2_pos_value |= (0x000000FF & *data_ptr++) << 8;
   tPDO->touch_probe_pos2_pos_value |= (0x000000FF & *data_ptr++) << 16;
   tPDO->touch_probe_pos2_pos_value |= (0x000000FF & *data_ptr++) << 24;
-
-  // tPDO->touch_probe_pos2_neg_value |= (0x000000FF & *data_ptr++) << 0;
-  // tPDO->touch_probe_pos2_neg_value |= (0x000000FF & *data_ptr++) << 8;
-  // tPDO->touch_probe_pos2_neg_value |= (0x000000FF & *data_ptr++) << 16;
-  // tPDO->touch_probe_pos2_neg_value |= (0x000000FF & *data_ptr++) << 24;
 
   tPDO->digital_inputs |= (0x000000FF & *data_ptr++) << 0;
   tPDO->digital_inputs |= (0x000000FF & *data_ptr++) << 8;

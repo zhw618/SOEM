@@ -4,7 +4,7 @@
  * Usage : simple_test [ifname1]
  * ifname is NIC interface, f.e. eth0
  *
- * This is a minimal test. SOEM控制汇川SV660N伺服,进入CSP模式. 使用第0组PDO映射
+ * This is a minimal test. SOEM控制汇川SV660N伺服,进入PV模式. 使用第2组PDO映射(0x1702和0x1B02)
  * 2022.2.6联机调试通过.
  * 
  * 参考: https://github.com/nicola-sysdesign/ewdl-test
@@ -14,12 +14,13 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <inttypes.h>
 
 #include "ethercat.h"
 #include "registry_idx.h"
-#include "rxpdo.h"
-#include "txpdo.h"
+#include "rxpdo2.h"
+#include "txpdo2.h"
 #include "time.h"  //tiemspec 加减转化等函数
 
 #define EC_TIMEOUTMON 500
@@ -45,9 +46,35 @@ uint8 io_map[MAX_IO_MAP_SIZE];
 
 #define MAX_SLAVES_COUNT 10 //本主站程序带的最大站数量
 
-RxPDO0t rx_pdo[MAX_SLAVES_COUNT];  //此处使用第0组PDO映射!!
-TxPDO0t tx_pdo[MAX_SLAVES_COUNT];
+RxPDO2t rx_pdo[MAX_SLAVES_COUNT]; //此处使用第2组PDO映射!!
+TxPDO2t tx_pdo[MAX_SLAVES_COUNT];
 // ======= end of variables=====================
+
+#pragma region "配置SDO的工具函数"
+static int moog_write8 (uint16 slave, uint16 index, uint8 subindex, uint8 value)
+{
+   int wkc;
+   wkc = ec_SDOwrite (slave, index, subindex, FALSE, sizeof(value), &value, EC_TIMEOUTSTATE);
+   while(ec_iserror()) { printf( ec_elist2string() ); }
+   return wkc;
+}
+
+static int moog_write16 (uint16 slave, uint16 index, uint8 subindex, uint16 value)
+{
+   int wkc;
+   wkc = ec_SDOwrite (slave, index, subindex, FALSE, sizeof(value), &value, EC_TIMEOUTSTATE);
+   while(ec_iserror()) { printf( ec_elist2string() ); }
+   return wkc;
+}
+
+static int moog_write32 (uint16 slave, uint16 index, uint8 subindex, uint32 value)
+{
+   int wkc;
+   wkc = ec_SDOwrite (slave, index, subindex, FALSE, sizeof(value), &value, EC_TIMEOUTSTATE);
+   while(ec_iserror()) { printf( ec_elist2string() ); }
+   return wkc;
+}
+#pragma endregion "配置SDO的工具函数"
 
 /* ======= functions ========================= */
 //打印slave从站状态
@@ -88,37 +115,63 @@ inline void print_ec_state(uint16 slave_idx)
    }
 }
 
-//进入SafeOP前的slave站: PDO映射选择
+//进入SafeOP前的slave从站: PDO映射选择
 int slave_setup(uint16 slave)
 {
    int wkc = 0;
 
+   /* ----------------配置SDO --------------------*/
    // Sync Managers assignment
-   uint16 sdo_1c12[] = {0x0001, 0x1600}; // RxPDO0
-   uint16 sdo_1c13[] = {0x0001, 0x1A00}; // TxPDO0
-   //wkc += writeSDO<uint16>(slave, 0x1c12, 0x00, sdo_1c12);
-   //wkc += writeSDO<uint16>(slave, 0x1c13, 0x00, sdo_1c13);
-   wkc += ec_SDOwrite(slave, 0x1c12, 0x00, FALSE, sizeof(sdo_1c12), sdo_1c12, EC_TIMEOUTRXM);
-   wkc += ec_SDOwrite(slave, 0x1c13, 0x00, FALSE, sizeof(sdo_1c13), sdo_1c13, EC_TIMEOUTRXM);
+   uint16 v_0x1c12=0x1702, v_0x1c13=0x1b02;   //使用第2组映射(0x1702和0x1b02)
+   int len_0x1c12=2, len_0x1c13=2;
+   //uint8 v0=0x00, v1=0x01;
+
+   wkc += moog_write8 (slave, 0x1C12, 0, 0);
+   wkc += moog_write8 (slave, 0x1C13, 0, 0);
+
+   wkc += moog_write16 (slave, 0x1C12, 1, v_0x1c12);
+   wkc += moog_write16 (slave, 0x1C12, 0, 1);
+
+   wkc += moog_write16 (slave, 0x1C13, 1, v_0x1c13);
+   wkc += moog_write16 (slave, 0x1C13, 0, 1);
+   
+   if(wkc!=6){
+      printf("wkc=%d, Config SDO Failed!\n", wkc);
+   }
+
+   // //运行模式设置为PV模式
+   int8 op_mode = PROFILE_VELOCITY;
+   wkc += ec_SDOwrite(1, MODE_OF_OPERATION_IDX, 0x00, FALSE, sizeof(op_mode), &op_mode, EC_TIMEOUTSTATE);
+   while(ec_iserror()) { printf(ec_elist2string()); }
+   // wkc += moog_write8 (slave, MODE_OF_OPERATION_IDX, 0, op_mode);
 
    printf("--Debug: slave= %d \n", slave);
    int len_0x6061; 
    uint8 v_0x6061;
    wkc += ec_SDOread(slave, MODE_OF_OPERATION_DISPLAY_IDX, 0x00, FALSE, &len_0x6061, &v_0x6061, EC_TIMEOUTSTATE);
    printf("--Debug: MODE_OF_OPERATION_DISPLAY 0x6061= 0x%02x \n", v_0x6061);
-   uint16 v_0x1c12, v_0x1c13;   
-   int len_0x1c12=2, len_0x1c13=2;
    ec_SDOread(slave, 0x1c12, 0x01, FALSE, &len_0x1c12, &v_0x1c12, EC_TIMEOUTSTATE );
    ec_SDOread(slave, 0x1c13, 0x01, FALSE, &len_0x1c13, &v_0x1c13, EC_TIMEOUTSTATE );
    printf("--Debug: 0x1c12= 0x%04x, 0x1c13= 0x%04x \n", v_0x1c12, v_0x1c13);
 
-   // Sync Managers synchronization
-   uint16 sdo_1c32[] = {0x20, 0x0002};
-   uint16 sdo_1c33[] = {0x20, 0x0002};
-   //wkc += writeSDO<uint16>(slave, 0x1c32, 0x01, sdo_1c32[1]);
-   //wkc += writeSDO<uint16>(slave, 0x1c33, 0x01, sdo_1c33[1]);
-   wkc += ec_SDOwrite(slave, 0x1c12, 0x00, FALSE, sizeof(sdo_1c32[1]), &(sdo_1c32[1]), EC_TIMEOUTRXM);
-   wkc += ec_SDOwrite(slave, 0x1c12, 0x00, FALSE, sizeof(sdo_1c33[1]), &(sdo_1c33[1]), EC_TIMEOUTRXM);
+
+   // // Sync Managers synchronization
+   // uint16 sdo_1c32[] = {0x20, 0x0002};
+   // uint16 sdo_1c33[] = {0x20, 0x0002};
+   // //wkc += writeSDO<uint16>(slave, 0x1c32, 0x01, sdo_1c32[1]);
+   // //wkc += writeSDO<uint16>(slave, 0x1c33, 0x01, sdo_1c33[1]);
+   // wkc += ec_SDOwrite(slave, 0x1c12, 0x00, FALSE, sizeof(sdo_1c32[1]), &(sdo_1c32[1]), EC_TIMEOUTRXM);
+   // wkc += ec_SDOwrite(slave, 0x1c12, 0x00, FALSE, sizeof(sdo_1c33[1]), &(sdo_1c33[1]), EC_TIMEOUTRXM);
+
+   /* Explicitly set flags that are (probably) invalid in EEPROM */
+   //ec_slave[slave].SM[2].SMflags = 0x10064;
+
+   /* Explicitly disable sync managers that are activated by EEPROM */
+   //ec_slave[slave].SM[4].StartAddr = 0;
+   //ec_slave[slave].SM[5].StartAddr = 0;
+
+   /* Set a slave name */
+   //strncpy (ec_slave[slave].name, "InoSV660N", EC_MAXNAME);
 
    return wkc;
 }
@@ -191,8 +244,8 @@ boolean ready_to_switch_on()
 {
    for (int i = 0; i < ec_slavecount; i++)
    {
-   const uint16 slave_idx = 1 + i;
-   rx_pdo[slave_idx].control_word = 0x0006;
+      const uint16 slave_idx = 1 + i;
+      rx_pdo[slave_idx].control_word = 0x0006;
    }
    return TRUE;
 }
@@ -201,8 +254,8 @@ boolean switch_on()
 {
    for (int i = 0; i < ec_slavecount; i++)
    {
-   const uint16 slave_idx = 1 + i;
-   rx_pdo[slave_idx].control_word = 0x0007;
+      const uint16 slave_idx = 1 + i;
+      rx_pdo[slave_idx].control_word = 0x0007;
    }
    return TRUE;
 }
@@ -254,7 +307,7 @@ int update()
    {
       const uint16 slave_idx = 1 + i;
       //rx_pdo[slave_idx] >> ec_slave[slave_idx].outputs;
-      RxPDO0_write_to_addr( rx_pdo + slave_idx, ec_slave[slave_idx].outputs );
+      RxPDO2_write_to_addr( rx_pdo + slave_idx, ec_slave[slave_idx].outputs );
    }
 
    ec_send_processdata();
@@ -264,7 +317,7 @@ int update()
    {
       const uint16 slave_idx = 1 + i;
       //tx_pdo[slave_idx] << ec_slave[slave_idx].inputs;
-      TxPDO0_read_from_addr( tx_pdo + slave_idx, ec_slave[slave_idx].inputs );
+      TxPDO2_read_from_addr( tx_pdo + slave_idx, ec_slave[slave_idx].inputs );
    }
 
    ec_sync(ec_DCtime, t_cycle, &t_off);
@@ -273,6 +326,7 @@ int update()
 /* ======= end of functions ========================= */
 
 struct timespec t={}, t_1={}, t0_cmd={};
+int8 mode_of_operation;
 void* control_loop()
 {
   clock_gettime(CLOCK_MONOTONIC, &t);  //当前时间,单位ns
@@ -297,6 +351,7 @@ void* control_loop()
     if (iter == 50)
     {
       printf("Fault Reset Slave 1... ");
+
       if (fault_reset(1))
       {
         printf("SUCCESS \n");
@@ -306,6 +361,10 @@ void* control_loop()
          printf("FAILURE \n");
          return 0;
       }
+
+      //设置运行模式:      
+      //mode_of_operation = PROFILE_VELOCITY;
+      //rx_pdo[1].mode_of_operation = mode_of_operation;
     }
 
     if (iter == 100)
@@ -363,21 +422,25 @@ void* control_loop()
         uint16 error_code = tx_pdo[slave_idx].error_code;
         uint16 status_word = tx_pdo[slave_idx].status_word;
         int32 position_actual_value = tx_pdo[slave_idx].position_actual_value;
-        //int8 mode_of_operation_display = tx_pdo[slave_idx].mode_of_operation_display;
+        //int32 velocity_actual_value = tx_pdo[slave_idx].velocity_actual_value;
+        int8 mode_of_operation_display = tx_pdo[slave_idx].mode_of_operation_display;
 
-        //int8 mode_of_operation = CYCLIC_SYNCHRONOUS_POSITION;
         //int32 target_position = 0;  //若设置位置0,刚启动时可能会有跳动.
-        int32 target_position = position_actual_value;  //保持实际位置,避免跳动!
-        //rx_pdo[slave_idx].mode_of_operation = mode_of_operation;
-        rx_pdo[slave_idx].target_position = target_position;
+        //int32 target_position = position_actual_value;  //保持实际位置,避免跳动!
+        //rx_pdo[slave_idx].target_position = target_position;
+        int32 target_velocity = 0;  //目标速度值,单位:编码器脉冲数/s.
+        //int32 direct = ( iter % 10000 < 5000 )?1:(-1);  //1万次是20秒,每10s改变一次方向
+        //target_velocity *= direct;
+        rx_pdo[slave_idx].target_velocity = target_velocity;
+
 
         if(iter % 1000 == 0){
            printf("iter=%d ---------------------------\n", iter);
            printf(" error_code: 0x%04x\n", error_code);
            printf(" status_word: 0x%04x\n", status_word);
            printf(" position_actual_value: %d\n", position_actual_value);
-           //printf(" mode_of_operation_display: %d\n", mode_of_operation_display);
-           //printf(" target_velocity: %d\n", target_velocity);
+           printf(" mode_of_operation_display: %d\n", mode_of_operation_display);
+           printf(" target_velocity: %d\n", target_velocity);
         }
       }
     }
@@ -428,6 +491,11 @@ void simpletest(char *ifname)
    // PRE OPERATIONAL
    ec_state_act = ec_statecheck(0, EC_STATE_PRE_OP, EC_TIMEOUTSTATE);
    print_ec_state(0);
+
+   //运行模式设置为PV模式
+   // // wkc += ec_SDOwrite(1, MODE_OF_OPERATION_IDX, 0x00, FALSE, sizeof(op_mode), &op_mode, EC_TIMEOUTSTATE);
+   // // while(ec_iserror()) { printf(ec_elist2string()); }
+   // wkc += moog_write8 (1, MODE_OF_OPERATION_IDX, 0, op_mode);
 
    // network configuration
    //  if (!network_configuration())
@@ -631,7 +699,7 @@ int main(int argc, char *argv[])
    {
       /* create thread to handle slave error handling in OP */
       //pthread_create( &thread1, NULL, (void *) &ecatcheck, (void*) &ctime);
-      osal_thread_create(&thread1, 128000, &ecatcheck, (void*) &ctime);
+      //osal_thread_create(&thread1, 128000, &ecatcheck, (void*) &ctime);
 
       /* start cyclic part */
       simpletest(argv[1]);

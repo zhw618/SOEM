@@ -82,8 +82,6 @@ typedef struct RxPDO2
   uint16_t touch_probe_function;
   uint32_t max_velocity;
 
-  //uint32_t physical_outputs;
-
 } RxPDO2t;
 void RxPDO2_write_to_addr(RxPDO2t *  rPDO,  uint8_t * data_ptr)
   {
@@ -114,11 +112,6 @@ void RxPDO2_write_to_addr(RxPDO2t *  rPDO,  uint8_t * data_ptr)
     *data_ptr++ = (rPDO->max_velocity >> 8) & 0xFF;
     *data_ptr++ = (rPDO->max_velocity >> 16) & 0xFF;
     *data_ptr++ = (rPDO->max_velocity >> 24) & 0xFF;
-
-    // *data_ptr++ = (rPDO->physical_outputs >> 0) & 0xFF;
-    // *data_ptr++ = (rPDO->physical_outputs >> 8) & 0xFF;
-    // *data_ptr++ = (rPDO->physical_outputs >> 16) & 0xFF;
-    // *data_ptr++ = (rPDO->physical_outputs >> 24) & 0xFF;
 
   }
 
