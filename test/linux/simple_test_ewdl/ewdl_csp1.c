@@ -4,7 +4,9 @@
  * Usage : simple_test [ifname1]
  * ifname is NIC interface, f.e. eth0
  *
- * This is a minimal test. SOEM控制汇川SV660N伺服,进入CSP模式. 2022.2.6联机调试通过.
+ * This is a minimal test. SOEM控制汇川SV660N伺服,进入CSP模式. 使用第1组PDO映射.
+ * 2022.2.6联机调试通过.
+ * 
  * 参考: https://github.com/nicola-sysdesign/ewdl-test
  * 
  * (c)Arthur Ketels 2010 - 2011
@@ -43,7 +45,7 @@ uint8 io_map[MAX_IO_MAP_SIZE];
 
 #define MAX_SLAVES_COUNT 10 //本主站程序带的最大站数量
 
-RxPDO1t rx_pdo[MAX_SLAVES_COUNT];
+RxPDO1t rx_pdo[MAX_SLAVES_COUNT]; //此处使用第1组PDO映射!!
 TxPDO1t tx_pdo[MAX_SLAVES_COUNT];
 // ======= end of variables=====================
 
@@ -86,18 +88,35 @@ inline void print_ec_state(uint16 slave_idx)
    }
 }
 
-//进入SafeOP前的slave 同步时钟设置
+//进入SafeOP前的slave从站: PDO映射选择
 int slave_setup(uint16 slave)
 {
    int wkc = 0;
 
+   /* ----------------配置SDO --------------------*/
+   //运行模式设置为CSP模式
+   int8 op_mode = CYCLIC_SYNCHRONOUS_POSITION;
+   wkc += ec_SDOwrite(1, MODE_OF_OPERATION_IDX, 0x00, FALSE, sizeof(op_mode), &op_mode, EC_TIMEOUTSTATE*4);
+
    // Sync Managers assignment
-   uint16 sdo_1c12[] = {0x0001, 0x1600}; // RxPDO1
-   uint16 sdo_1c13[] = {0x0001, 0x1A00}; // TxPDO1
-   //wkc += writeSDO<uint16>(slave, 0x1c12, 0x00, sdo_1c12);
-   //wkc += writeSDO<uint16>(slave, 0x1c13, 0x00, sdo_1c13);
-   wkc += ec_SDOwrite(slave, 0x1c12, 0x00, FALSE, sizeof(sdo_1c12), sdo_1c12, EC_TIMEOUTRXM);
-   wkc += ec_SDOwrite(slave, 0x1c13, 0x00, FALSE, sizeof(sdo_1c13), sdo_1c13, EC_TIMEOUTRXM);
+   uint16 v_0x1c12=0x1701, v_0x1c13=0x1b01;
+   int len_0x1c12=2, len_0x1c13=2;
+   uint8 v0=0x00, v1=0x01;
+   wkc += ec_SDOwrite(1, 0x1c12, 0x00, FALSE, 1, &v0, EC_TIMEOUTSTATE*4);
+   wkc += ec_SDOwrite(1, 0x1c12, 0x01, TRUE, len_0x1c12, &v_0x1c12, EC_TIMEOUTSTATE*4);
+   wkc += ec_SDOwrite(1, 0x1c12, 0x00, FALSE, 1, &v1, EC_TIMEOUTSTATE*4);
+   wkc += ec_SDOwrite(1, 0x1c13, 0x00, FALSE, 1, &v0, EC_TIMEOUTSTATE*4);
+   wkc += ec_SDOwrite(1, 0x1c13, 0x01, TRUE, len_0x1c13, &v_0x1c13, EC_TIMEOUTSTATE*4);
+   wkc += ec_SDOwrite(1, 0x1c13, 0x00, FALSE, 1, &v1, EC_TIMEOUTSTATE*4);
+
+   printf("--Debug: slave= %d \n", slave);
+   int len_0x6061; 
+   uint8 v_0x6061;
+   wkc += ec_SDOread(slave, MODE_OF_OPERATION_DISPLAY_IDX, 0x00, FALSE, &len_0x6061, &v_0x6061, EC_TIMEOUTSTATE);
+   printf("--Debug: MODE_OF_OPERATION_DISPLAY 0x6061= 0x%02x \n", v_0x6061);
+   ec_SDOread(slave, 0x1c12, 0x01, FALSE, &len_0x1c12, &v_0x1c12, EC_TIMEOUTSTATE );
+   ec_SDOread(slave, 0x1c13, 0x01, FALSE, &len_0x1c13, &v_0x1c13, EC_TIMEOUTSTATE );
+   printf("--Debug: 0x1c12= 0x%04x, 0x1c13= 0x%04x \n", v_0x1c12, v_0x1c13);
 
    // Sync Managers synchronization
    uint16 sdo_1c32[] = {0x20, 0x0002};
@@ -262,8 +281,6 @@ int update()
 struct timespec t={}, t_1={}, t0_cmd={};
 void* control_loop()
 {
-  //esa::ewdl::ethercat::Master* ec_master = (esa::ewdl::ethercat::Master*)arg;
-
   clock_gettime(CLOCK_MONOTONIC, &t);  //当前时间,单位ns
 
   for (int iter = 1; iter < 1800000; iter++)
@@ -349,13 +366,24 @@ void* control_loop()
       {
         const uint16 slave_idx = 1 + i;
 
-        //uint16 status_word = tx_pdo[slave_idx].status_word;
-        //int32 position_actual_value = tx_pdo[slave_idx].position_actual_value;
+        uint16 error_code = tx_pdo[slave_idx].error_code;
+        uint16 status_word = tx_pdo[slave_idx].status_word;
+        int32 position_actual_value = tx_pdo[slave_idx].position_actual_value;
 
         //int8 mode_of_operation = CYCLIC_SYNCHRONOUS_POSITION;
-        int32 target_position = 0;
+        //int32 target_position = 0;  //若设置位置0,刚启动时可能会有跳动.
+        int32 target_position = position_actual_value;  //保持实际位置,避免跳动!
         //rx_pdo[slave_idx].mode_of_operation = mode_of_operation;
         rx_pdo[slave_idx].target_position = target_position;
+
+
+        if(iter % 1000 == 0){
+           printf("iter=%d ---------------------------\n", iter);
+           printf(" error_code: 0x%04x\n", error_code);
+           printf(" status_word: 0x%04x\n", status_word);
+           printf(" actual_position: %d\n", position_actual_value);
+           printf(" target_position: %d\n", target_position);
+        }
       }
     }
 
@@ -423,7 +451,7 @@ void simpletest(char *ifname)
    // 设置hook函数: Pre-Operational -> Safe-Operational
    for (uint16 slave_idx = 1; slave_idx <= ec_slavecount; slave_idx++)
    {
-      //ec_slave[slave_idx].PO2SOconfig = slave_setup;
+      ec_slave[slave_idx].PO2SOconfig = slave_setup;
    }
 
    unsigned int used_mem = ec_config_map(&io_map);

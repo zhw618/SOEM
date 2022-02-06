@@ -4,7 +4,9 @@
  * Usage : simple_test [ifname1]
  * ifname is NIC interface, f.e. eth0
  *
- * This is a minimal test. SOEM控制汇川SV660N伺服,进入CSP模式. 2022.2.6联机调试通过.
+ * This is a minimal test. SOEM控制汇川SV660N伺服,进入CSP模式. 使用第0组PDO映射
+ * 2022.2.6联机调试通过.
+ * 
  * 参考: https://github.com/nicola-sysdesign/ewdl-test
  * 
  * (c)Arthur Ketels 2010 - 2011
@@ -43,8 +45,8 @@ uint8 io_map[MAX_IO_MAP_SIZE];
 
 #define MAX_SLAVES_COUNT 10 //本主站程序带的最大站数量
 
-RxPDO1t rx_pdo[MAX_SLAVES_COUNT];
-TxPDO1t tx_pdo[MAX_SLAVES_COUNT];
+RxPDO0t rx_pdo[MAX_SLAVES_COUNT];  //此处使用第0组PDO映射!!
+TxPDO0t tx_pdo[MAX_SLAVES_COUNT];
 // ======= end of variables=====================
 
 /* ======= functions ========================= */
@@ -86,14 +88,14 @@ inline void print_ec_state(uint16 slave_idx)
    }
 }
 
-//进入SafeOP前的slave 同步时钟设置
+//进入SafeOP前的slave站: PDO映射选择
 int slave_setup(uint16 slave)
 {
    int wkc = 0;
 
    // Sync Managers assignment
-   uint16 sdo_1c12[] = {0x0001, 0x1600}; // RxPDO1
-   uint16 sdo_1c13[] = {0x0001, 0x1A00}; // TxPDO1
+   uint16 sdo_1c12[] = {0x0001, 0x1600}; // RxPDO0
+   uint16 sdo_1c13[] = {0x0001, 0x1A00}; // TxPDO0
    //wkc += writeSDO<uint16>(slave, 0x1c12, 0x00, sdo_1c12);
    //wkc += writeSDO<uint16>(slave, 0x1c13, 0x00, sdo_1c13);
    wkc += ec_SDOwrite(slave, 0x1c12, 0x00, FALSE, sizeof(sdo_1c12), sdo_1c12, EC_TIMEOUTRXM);
@@ -241,7 +243,7 @@ int update()
    {
       const uint16 slave_idx = 1 + i;
       //rx_pdo[slave_idx] >> ec_slave[slave_idx].outputs;
-      RxPDO1_write_to_addr( rx_pdo + slave_idx, ec_slave[slave_idx].outputs );
+      RxPDO0_write_to_addr( rx_pdo + slave_idx, ec_slave[slave_idx].outputs );
    }
 
    ec_send_processdata();
@@ -251,7 +253,7 @@ int update()
    {
       const uint16 slave_idx = 1 + i;
       //tx_pdo[slave_idx] << ec_slave[slave_idx].inputs;
-      TxPDO1_read_from_addr( tx_pdo + slave_idx, ec_slave[slave_idx].inputs );
+      TxPDO0_read_from_addr( tx_pdo + slave_idx, ec_slave[slave_idx].inputs );
    }
 
    ec_sync(ec_DCtime, t_cycle, &t_off);
@@ -262,8 +264,6 @@ int update()
 struct timespec t={}, t_1={}, t0_cmd={};
 void* control_loop()
 {
-  //esa::ewdl::ethercat::Master* ec_master = (esa::ewdl::ethercat::Master*)arg;
-
   clock_gettime(CLOCK_MONOTONIC, &t);  //当前时间,单位ns
 
   for (int iter = 1; iter < 1800000; iter++)
@@ -350,10 +350,11 @@ void* control_loop()
         const uint16 slave_idx = 1 + i;
 
         //uint16 status_word = tx_pdo[slave_idx].status_word;
-        //int32 position_actual_value = tx_pdo[slave_idx].position_actual_value;
+        int32 position_actual_value = tx_pdo[slave_idx].position_actual_value;
 
         //int8 mode_of_operation = CYCLIC_SYNCHRONOUS_POSITION;
-        int32 target_position = 0;
+        //int32 target_position = 0;  //若设置位置0,刚启动时可能会有跳动.
+        int32 target_position = position_actual_value;  //保持实际位置,避免跳动!
         //rx_pdo[slave_idx].mode_of_operation = mode_of_operation;
         rx_pdo[slave_idx].target_position = target_position;
       }
@@ -483,7 +484,7 @@ void simpletest(char *ifname)
       //rx_pdo[slave_idx].mode_of_operation = 0;
       rx_pdo[slave_idx].target_position = 0;
       rx_pdo[slave_idx].touch_probe_function = 0;
-      rx_pdo[slave_idx].physical_outputs = 0x0000;
+      //rx_pdo[slave_idx].physical_outputs = 0x0000;
    }
 
    update();
