@@ -9,7 +9,12 @@
 # target_link_libraries(pvmode soem)
 # install(TARGETS pvmode DESTINATION bin)
 
-set(SOURCES csdn_pv.c)
-add_executable(csdn_pv ${SOURCES})
-target_link_libraries(csdn_pv soem)
-install(TARGETS csdn_pv DESTINATION bin)
+# set(SOURCES csdn_pv.c)
+# add_executable(csdn_pv ${SOURCES})
+# target_link_libraries(csdn_pv soem)
+# install(TARGETS csdn_pv DESTINATION bin)
+
+set(SOURCES pppv_pdo2.c)
+add_executable(pppv_pdo2 ${SOURCES})
+target_link_libraries(pppv_pdo2 soem)
+install(TARGETS pppv_pdo2 DESTINATION bin)

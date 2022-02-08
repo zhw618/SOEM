@@ -9,7 +9,7 @@ typedef struct TxPDO2
   uint16_t error_code;
   uint16_t status_word;
   int32_t position_actual_value;
-  int32_t torque_actual_value;
+  int16_t torque_actual_value;
   int8_t mode_of_operation_display;
   
   uint16_t touch_probe_status;
@@ -23,7 +23,7 @@ void TxPDO2_read_from_addr(TxPDO2t *tPDO, uint8_t *data_ptr)
   tPDO->error_code = 0x0000;
   tPDO->status_word = 0x0000;
   tPDO->position_actual_value = 0x00000000;
-  tPDO->torque_actual_value = 0x00000000;
+  tPDO->torque_actual_value = 0x0000;
   tPDO->mode_of_operation_display = 0x00;
   tPDO->touch_probe_status = 0x0000;
   tPDO->touch_probe_pos1_pos_value = 0x00000000;
@@ -43,8 +43,6 @@ void TxPDO2_read_from_addr(TxPDO2t *tPDO, uint8_t *data_ptr)
 
   tPDO->torque_actual_value |= (0x000000FF & *data_ptr++) << 0;
   tPDO->torque_actual_value |= (0x000000FF & *data_ptr++) << 8;
-  tPDO->torque_actual_value |= (0x000000FF & *data_ptr++) << 16;
-  tPDO->torque_actual_value |= (0x000000FF & *data_ptr++) << 24;
 
   tPDO->mode_of_operation_display |= (0xFF & *data_ptr++) << 0;
 

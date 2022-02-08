@@ -561,9 +561,10 @@ void simpletest(char *ifname)
    {
       const uint16 slave_idx = 1 + i;
       rx_pdo[slave_idx].control_word = 0x0006;
-      //rx_pdo[slave_idx].mode_of_operation = 0;
-      rx_pdo[slave_idx].target_position = 0;
-      rx_pdo[slave_idx].touch_probe_function = 0;
+      //rx_pdo[slave_idx].target_position = 0;
+      rx_pdo[slave_idx].target_velocity = 5000000;
+      rx_pdo[slave_idx].mode_of_operation = CYCLIC_SYNCHRONOUS_VELOCITY; 
+      //rx_pdo[slave_idx].touch_probe_function = 0;
       //rx_pdo[slave_idx].physical_outputs = 0x0000;
    }
 

@@ -10,7 +10,7 @@ typedef struct RxPDO2
   uint16_t control_word;
   int32_t target_position;
   int32_t target_velocity;
-  int32_t target_torque;
+  int16_t target_torque;
   int8_t mode_of_operation;
   uint16_t touch_probe_function;
   uint32_t max_velocity;
@@ -33,10 +33,9 @@ void RxPDO2_write_to_addr(RxPDO2t *  rPDO,  uint8_t * data_ptr)
 
     *data_ptr++ = (rPDO->target_torque >> 0) & 0xFF;
     *data_ptr++ = (rPDO->target_torque >> 8) & 0xFF;
-    *data_ptr++ = (rPDO->target_torque >> 16) & 0xFF;
-    *data_ptr++ = (rPDO->target_torque >> 24) & 0xFF;
 
     *data_ptr++ = (rPDO->mode_of_operation >> 0) & 0xFF;
+    //data_ptr++;
 
     *data_ptr++ = (rPDO->touch_probe_function >> 0) & 0xFF;
     *data_ptr++ = (rPDO->touch_probe_function >> 8) & 0xFF;

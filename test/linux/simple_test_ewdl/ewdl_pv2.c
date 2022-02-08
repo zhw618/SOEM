@@ -260,6 +260,15 @@ boolean switch_on()
    return TRUE;
 }
 
+boolean enable_operation()
+{
+   for (int i = 0; i < ec_slavecount; i++)
+   {
+      const uint16 slave_idx = 1 + i;
+      rx_pdo[slave_idx].control_word = 0x000F;
+   }
+   return TRUE;
+}
 
 boolean switch_off()
 {
@@ -271,15 +280,6 @@ boolean switch_off()
    return TRUE;
 }
 
-boolean enable_operation()
-{
-   for (int i = 0; i < ec_slavecount; i++)
-   {
-      const uint16 slave_idx = 1 + i;
-      rx_pdo[slave_idx].control_word = 0x000F;
-   }
-   return TRUE;
-}
 
 // 同步DC时钟,计算出时间偏差
 //   t_ref  -- (IN) 参考时钟,单位ns.
@@ -362,9 +362,6 @@ void* control_loop()
          return 0;
       }
 
-      //设置运行模式:      
-      //mode_of_operation = PROFILE_VELOCITY;
-      //rx_pdo[1].mode_of_operation = mode_of_operation;
     }
 
     if (iter == 100)
@@ -410,10 +407,11 @@ void* control_loop()
     }
 
     if (iter == 500) t0_cmd = t;
+    
     if (iter >= 500)
     {
       struct timespec t_cmd;
-      diff_timespec(&t, &t0_cmd, &t_cmd);
+      diff_timespec(&t, &t0_cmd, &t_cmd);  //本次与iter=500次的时间差.(并未使用)
 
       for (int i = 0; i < ec_slavecount; i++)
       {
@@ -428,7 +426,7 @@ void* control_loop()
         //int32 target_position = 0;  //若设置位置0,刚启动时可能会有跳动.
         //int32 target_position = position_actual_value;  //保持实际位置,避免跳动!
         //rx_pdo[slave_idx].target_position = target_position;
-        int32 target_velocity = 0;  //目标速度值,单位:编码器脉冲数/s.
+        int32 target_velocity = 8000000;  //目标速度值,单位:编码器脉冲数/s.
         //int32 direct = ( iter % 10000 < 5000 )?1:(-1);  //1万次是20秒,每10s改变一次方向
         //target_velocity *= direct;
         rx_pdo[slave_idx].target_velocity = target_velocity;
@@ -571,9 +569,10 @@ void simpletest(char *ifname)
    {
       const uint16 slave_idx = 1 + i;
       rx_pdo[slave_idx].control_word = 0x0006;
-      //rx_pdo[slave_idx].mode_of_operation = 0;
-      rx_pdo[slave_idx].target_position = 0;
-      rx_pdo[slave_idx].touch_probe_function = 0;
+      //rx_pdo[slave_idx].target_position = 0;  //此处不能有target_position,否则OP后模式自动改为了CSP!!
+      rx_pdo[slave_idx].target_velocity = 5000000;
+      rx_pdo[slave_idx].mode_of_operation = PROFILE_VELOCITY; 
+      //rx_pdo[slave_idx].touch_probe_function = 0;
       //rx_pdo[slave_idx].physical_outputs = 0x0000;
    }
 
