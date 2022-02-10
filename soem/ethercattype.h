@@ -534,7 +534,10 @@ typedef struct
 
 #if !defined(EC_BIG_ENDIAN) && defined(EC_LITTLE_ENDIAN)
 
-  #define htoes(A) (A)
+ /** Note that Ethercat uses little endian byte order,  
+  ** except for the Ethernet header which is big endian as usual. */
+
+  #define htoes(A) (A)   /* Host to EtherCAT byte order */
   #define htoel(A) (A)
   #define htoell(A) (A)
   #define etohs(A) (A)

@@ -27,23 +27,12 @@
 
 #define NSEC_PER_SEC 1000000000  //每秒有多少ns
 
-char * IOmap = NULL;  //共享内存指针,用于IOMap映射
+char * SHMAddr = NULL;  //共享内存SHM缓冲区指针,用于与其他进程交换数据
+char IOmap[SHM_SIZE];   //仅用于SOEM协议栈IOMap映射!!
+
 RxPDO1t * pRxPDO1;    //slave1的 RxPDO结构体
 TxPDO1t * pTxPDO1;    //slave1的 TxPDO结构体
 
-//uint8 * AddrOut = ec_slave[1].outputs;
-// uint16 * p_control_word    ;//uint16*) IOmap;
-// int32 * p_target_position  ;//int32*) (IOmap +2);
-// int32 * p_target_velocity  ;//int32*) (IOmap +2 +4);
-// int16 * p_target_torque    ;//int16*) (IOmap +2 +4 +4);
-// int8 * p_operation_mode    ;//int8*)  (IOmap +2 +4 +4 +2);
-// uint32 * p_max_velocity    ;
-//input//
-// uint16* p_error_code       ;//(uint16*) (IOmap + 19);
-// uint16* p_status_word      ;//(uint16*) (IOmap + 19 +2);
-// int32 * p_current_position ;//(int32*)  (IOmap + 19 +2 +2);
-// int16 * p_current_torque   ;//(int16*)  (IOmap + 19 +2 +2 +4);
-// int8 *  p_current_mode     ;//(int8*)   (IOmap + 19 +2 +2 +4 +2);
 
 boolean flag_Slave1Run = 0 ;  //OP后若此flag置0, 则传递停机信号.
 
@@ -287,26 +276,24 @@ boolean switch_off()
 int stack_update(int32 * t_off)
 {
     int wkc=0;
-//    for (int i = 0; i < ec_slavecount; i++)
-//    {
-//       const uint16 slave_idx = 1 + i;
-//       //rx_pdo[slave_idx] >> ec_slave[slave_idx].outputs;
-//       RxPDO0_write_to_addr( rx_pdo + slave_idx, ec_slave[slave_idx].outputs );
-//    }
-    memcpy(ec_slave[1].outputs, pRxPDO1, 19);  //IOmap-->outputs 手动映射
+
+    /* 发出去data前, SHMAddr-->outputs 手动拷贝, 考虑大小端问题!! */
+    RxPDO1_copy_to(pRxPDO1, ec_slave[1].outputs );
+    if(flag_Slave1Run==0)  //若收到信号则停机
+    {
+        printf("--Debug: control_loop 收到停机信号!");
+        RxPDO1t* output_t = (RxPDO1t*) ec_slave[1].outputs;
+        output_t->control_word = 0x02;
+        //output_t->target_velocity = 0;
+    }
     ec_send_processdata();
 
     wkc += ec_receive_processdata(EC_TIMEOUTRET);
-    memcpy(pTxPDO1, ec_slave[1].inputs, 25);  //inputs-->IOmap 手动映射
-//    for (int i = 0; i < ec_slavecount; i++)
-//    {
-//       const uint16 slave_idx = 1 + i;
-//       //tx_pdo[slave_idx] << ec_slave[slave_idx].inputs;
-//       TxPDO0_read_from_addr( tx_pdo + slave_idx, ec_slave[slave_idx].inputs );
-//    }
+    /* 接收到data后, inputs-->SHMAddr 手动拷贝, 考虑大小端问题!! */
+    TxPDO1_copy_from(pTxPDO1, ec_slave[1].inputs );  
 
-   ec_sync(ec_DCtime, t_cycle, t_off);
-   return wkc;
+    ec_sync(ec_DCtime, t_cycle, t_off);
+    return wkc;
 }
 
 // Interrupt信号(SIGINT=2)处理函数
@@ -370,7 +357,17 @@ void* control_loop()
    //inOP= TRUE; //用于启动 ecatcheck检查
    /* ------设置 最大速度默认不为0 --------*/
    if(pRxPDO1->max_velocity == 0){
-      pRxPDO1->max_velocity= 100000000;
+
+      uint32 max_veloc = 100000000;
+      #ifndef SHM_BIG_ENDIAN
+         pRxPDO1->max_velocity= max_veloc;
+      #else  //小端转大端后再赋值
+         uint8 * data_ptr = (uint8 *) max_veloc;
+         *data_ptr++ = (max_veloc >> 0) & 0xFF;
+         *data_ptr++ = (max_veloc >> 8) & 0xFF;
+         *data_ptr++ = (max_veloc >> 16) & 0xFF;
+         *data_ptr++ = (max_veloc >> 24) & 0xFF;
+      #endif
    }
 
    //for (uint64 iter = 1; iter <= 60000; iter++)
@@ -474,14 +471,7 @@ void* control_loop()
       //   pRxPDO1->operation_mode = PROFILE_VELOCITY;  //pv=3, 仅启动时候使用
       //   pRxPDO1->max_velocity = 50000000;  //必须最大值一起发送,否则速度为0不转!!
         
-        if(flag_Slave1Run==0)  //若收到信号则停机
-        {
-           printf("--Debug: control_loop 收到停机信号!");
-           pRxPDO1->control_word = 0x02;
-           //*p_target_velocity = 0;
-           return NULL;
-        }
-        
+    
         stack_update(&t_off);
 
    }
@@ -629,22 +619,22 @@ int main(int argc, char *argv[])
 {
    
    /* ----   获取共享内存 用于映射空间 ---*/ 
-   IOmap = getIOMapShm();
-   if( (int)IOmap == -1 || IOmap == NULL)
+   SHMAddr = getIOMapShm();
+   if( (int)SHMAddr == -1 || SHMAddr == NULL)
    {
       printf("[ERROR] 获取共享内存失败. 退出程序~\n");
       return -1;
    } 
-   printf("--Debug show: IOMap= 0x%08x\n", (uint32)IOmap );
+   printf("--Debug show: SHMAddr= 0x%08x\n", (uint32)SHMAddr );
 
    /*  ------ 手动映射到结构体 --------*/
    //output,强制转化为结构体
-   pRxPDO1 = (RxPDO1t *) IOmap;  
+   pRxPDO1 = (RxPDO1t *) SHMAddr;  
    //input,强制转化为结构体
-   pTxPDO1 = (TxPDO1t *) (IOmap+19);
+   pTxPDO1 = (TxPDO1t *) (SHMAddr+19);
 
    /*  ------ 手动清零 --------------- */
-   memset(IOmap, 0, SHM_SIZE);
+   memset(SHMAddr, 0, SHM_SIZE);
 
 
    printf("SOEM PP/PV mode run test by zhw\n");
