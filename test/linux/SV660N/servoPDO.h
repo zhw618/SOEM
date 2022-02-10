@@ -2,7 +2,7 @@
 #define __SERVO_PDO_H
 
 /* 共享内存SHM交换区,数据默认为big-endian大端字节序存储 */
-//#define SHM_BIG_ENDIAN   
+#define SHM_BIG_ENDIAN   
 
 #include <stdint.h>
 
@@ -145,4 +145,4 @@ enum mode_of_operation_t
 };
 
 
-#endif
+#endif  //#ifndef

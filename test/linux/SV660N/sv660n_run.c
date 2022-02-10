@@ -279,13 +279,6 @@ int stack_update(int32 * t_off)
 
     /* 发出去data前, SHMAddr-->outputs 手动拷贝, 考虑大小端问题!! */
     RxPDO1_copy_to(pRxPDO1, ec_slave[1].outputs );
-    if(flag_Slave1Run==0)  //若收到信号则停机
-    {
-        printf("--Debug: control_loop 收到停机信号!");
-        RxPDO1t* output_t = (RxPDO1t*) ec_slave[1].outputs;
-        output_t->control_word = 0x02;
-        //output_t->target_velocity = 0;
-    }
     ec_send_processdata();
 
     wkc += ec_receive_processdata(EC_TIMEOUTRET);
@@ -359,10 +352,9 @@ void* control_loop()
    if(pRxPDO1->max_velocity == 0){
 
       uint32 max_veloc = 100000000;
-      #ifndef SHM_BIG_ENDIAN
-         pRxPDO1->max_velocity= max_veloc;
-      #else  //小端转大端后再赋值
-         uint8 * data_ptr = (uint8 *) max_veloc;
+      pRxPDO1->max_velocity= max_veloc;
+      #ifdef SHM_BIG_ENDIAN  //小端转大端后再赋值
+         uint8 * data_ptr = (uint8 *) (&pRxPDO1->max_velocity);
          *data_ptr++ = (max_veloc >> 0) & 0xFF;
          *data_ptr++ = (max_veloc >> 8) & 0xFF;
          *data_ptr++ = (max_veloc >> 16) & 0xFF;
@@ -471,7 +463,15 @@ void* control_loop()
       //   pRxPDO1->operation_mode = PROFILE_VELOCITY;  //pv=3, 仅启动时候使用
       //   pRxPDO1->max_velocity = 50000000;  //必须最大值一起发送,否则速度为0不转!!
         
-    
+         if(flag_Slave1Run==0)  //若收到信号则停机
+         {
+            printf("--Debug: control_loop() 收到停机信号!\n");
+            RxPDO1t* output_t = (RxPDO1t*) ec_slave[1].outputs;
+            output_t->control_word = 0x02;
+            //output_t->target_velocity = 0;
+            stack_update(&t_off);
+            return NULL;
+         }
         stack_update(&t_off);
 
    }
@@ -630,8 +630,10 @@ int main(int argc, char *argv[])
    /*  ------ 手动映射到结构体 --------*/
    //output,强制转化为结构体
    pRxPDO1 = (RxPDO1t *) SHMAddr;  
+   printf("--Debug: Struct RxPDO1t 的大小(Byte): %d \n", sizeof(RxPDO1t) );
    //input,强制转化为结构体
    pTxPDO1 = (TxPDO1t *) (SHMAddr+19);
+   printf("--Debug: Struct TxPDO1t 的大小(Byte): %d \n\n", sizeof(TxPDO1t) );
 
    /*  ------ 手动清零 --------------- */
    memset(SHMAddr, 0, SHM_SIZE);
