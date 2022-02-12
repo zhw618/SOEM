@@ -457,7 +457,7 @@ void simpletest(char *ifname)
    unsigned int used_mem = ec_config_map(&io_map);
    if (used_mem > sizeof(io_map))
    {
-      printf("IO Map size: %d > MAX_IO_MAP_SIZE: %du\n", used_mem, sizeof(io_map));
+      printf("IO Map size: %d > MAX_IO_MAP_SIZE: %lu\n", used_mem, sizeof(io_map));
       return;
    }
    printf("io_map size: %d\n", used_mem);

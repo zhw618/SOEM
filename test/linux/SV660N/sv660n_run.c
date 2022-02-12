@@ -27,7 +27,7 @@
 
 #define NSEC_PER_SEC 1000000000  //每秒有多少ns
 
-char * SHMAddr = NULL;  //共享内存SHM缓冲区指针,用于与其他进程交换数据
+char * pSHMMapAddr = NULL;  //共享内存SHM缓冲区指针,用于与其他进程交换数据
 char IOmap[SHM_SIZE];   //仅用于SOEM协议栈IOMap映射!!
 
 RxPDO1t * pRxPDO1;    //slave1的 RxPDO结构体
@@ -72,6 +72,7 @@ static int moog_read16 (uint16 slave, uint16 index, uint8 subindex, void * pvalu
    return wkc;
 }
 
+/*---------------未使用-----------------------
 static int moog_write32 (uint16 slave, uint16 index, uint8 subindex, int32 value)
 {
    int wkc;
@@ -86,6 +87,7 @@ static int moog_read32 (uint16 slave, uint16 index, uint8 subindex, void * pvalu
    while(ec_iserror()) { printf( ec_elist2string() ); }
    return wkc;
 }
+---------------未使用----------------------- */
 #pragma endregion "配置SDO的工具函数"
 
 
@@ -619,24 +621,24 @@ int main(int argc, char *argv[])
 {
    
    /* ----   获取共享内存 用于映射空间 ---*/ 
-   SHMAddr = getIOMapShm();
-   if( (int)SHMAddr == -1 || SHMAddr == NULL)
+   pSHMMapAddr = getIOMapShm();
+   if( pSHMMapAddr == (void *)-1 ) 
    {
       printf("[ERROR] 获取共享内存失败. 退出程序~\n");
       return -1;
    } 
-   printf("--Debug show: SHMAddr= 0x%08x\n", (uint32)SHMAddr );
+   printf("--Debug show: SHMAddr= 0x%p\n", pSHMMapAddr );
 
    /*  ------ 手动映射到结构体 --------*/
    //output,强制转化为结构体
-   pRxPDO1 = (RxPDO1t *) SHMAddr;  
-   printf("--Debug: Struct RxPDO1t 的大小(Byte): %d \n", sizeof(RxPDO1t) );
+   pRxPDO1 = (RxPDO1t *) pSHMMapAddr;  
+   printf("--Debug: Struct RxPDO1t 的大小(Byte): %lu \n", sizeof(RxPDO1t) );
    //input,强制转化为结构体
-   pTxPDO1 = (TxPDO1t *) (SHMAddr+19);
-   printf("--Debug: Struct TxPDO1t 的大小(Byte): %d \n\n", sizeof(TxPDO1t) );
+   pTxPDO1 = (TxPDO1t *) (pSHMMapAddr+19);
+   printf("--Debug: Struct TxPDO1t 的大小(Byte): %lu \n\n", sizeof(TxPDO1t) );
 
    /*  ------ 手动清零 --------------- */
-   memset(SHMAddr, 0, SHM_SIZE);
+   memset(pSHMMapAddr, 0, SHM_SIZE);
 
 
    printf("SOEM PP/PV mode run test by zhw\n");

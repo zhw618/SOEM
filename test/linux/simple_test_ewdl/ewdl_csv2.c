@@ -67,6 +67,7 @@ static int moog_write16 (uint16 slave, uint16 index, uint8 subindex, uint16 valu
    return wkc;
 }
 
+/***************************未使用********************
 static int moog_write32 (uint16 slave, uint16 index, uint8 subindex, uint32 value)
 {
    int wkc;
@@ -74,6 +75,7 @@ static int moog_write32 (uint16 slave, uint16 index, uint8 subindex, uint32 valu
    while(ec_iserror()) { printf( ec_elist2string() ); }
    return wkc;
 }
+***************************未使用********************/
 #pragma endregion "配置SDO的工具函数"
 
 /* ======= functions ========================= */
@@ -510,7 +512,7 @@ void simpletest(char *ifname)
    unsigned int used_mem = ec_config_map(&io_map);
    if (used_mem > sizeof(io_map))
    {
-      printf("IO Map size: %d > MAX_IO_MAP_SIZE: %du\n", used_mem, sizeof(io_map));
+      printf("IO Map size: %d > MAX_IO_MAP_SIZE: %lu\n", used_mem, sizeof(io_map));
       return;
    }
    printf("io_map size: %d\n", used_mem);

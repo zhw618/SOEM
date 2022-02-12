@@ -123,7 +123,7 @@ int main(int argc, char *argv[]){
 
     /* ----   获取共享内存 用于映射空间 ---*/ 
     IOmap = getIOMapShm();
-    if( (int)IOmap == -1 || IOmap == NULL)
+    if( IOmap == (void*)-1 )
     {
         printf("[ERROR] 获取共享内存失败. 退出程序~\n");
         return -1;
