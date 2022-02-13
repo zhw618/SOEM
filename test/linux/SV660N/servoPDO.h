@@ -1,10 +1,40 @@
 #ifndef __SERVO_PDO_H
+
 #define __SERVO_PDO_H
 
 /* 共享内存SHM交换区,数据默认为big-endian大端字节序存储 */
 #define SHM_BIG_ENDIAN   
 
+
 #include <stdint.h>
+
+//**************原地逆转字节序的两个函数******************
+void reverse_byte_order_uint16(uint16_t * pNum)
+{
+    uint8_t * pb = (uint8_t*) pNum;
+    uint8_t  val ;
+    //原地交换两个字节内容
+    val= *(pb);
+    *(pb) = *(pb+1);
+    *(pb+1) = val;
+}
+
+void  reverse_byte_order_uint32(uint32_t * pNum)
+{
+    uint8_t * pb = (uint8_t*) pNum;
+    uint8_t   val ;
+    //原地交换1和4两个字节内容
+    val = (*pb);
+    (*pb) = *(pb+3);
+    *(pb+3) = val;
+    //再原地交换2和3两个字节内容
+    val = *(pb+1);
+    *(pb+1) = *(pb+2);
+    *(pb+2) = val;
+}
+//**************以上: 逆转字节序的两个函数******************
+
+
 
 #pragma pack(push,1)
 typedef struct RxPDO1
@@ -20,40 +50,22 @@ typedef struct RxPDO1
 } RxPDO1t;
 #pragma pack(pop)
 
-void RxPDO1_copy_to(RxPDO1t *  rPDO,  uint8_t * data_ptr)
+/* ********************************************************************
+ *  拷贝RxPDO数据到新空间, 根据宏定义决定是否大小端(Little/Big-endian)转换!
+ * ********************************************************************/
+void RxPDO1_copyTo(RxPDO1t *  rPDO,  void * data_ptr)
 {
-#ifndef SHM_BIG_ENDIAN   //SHM缓冲区数据为 Little-endian 存储的情况.
+    memcpy( data_ptr, rPDO, sizeof(RxPDO1t) );
 
-     memcpy( data_ptr, rPDO, sizeof(RxPDO1t) );   
- 
-#else  //SHM缓冲区数据为 Big-endian 存储的情况: 大小端转化!
-
-    *data_ptr++ = (rPDO->control_word >> 0) & 0xFF;
-    *data_ptr++ = (rPDO->control_word >> 8) & 0xFF;
-
-    *data_ptr++ = (rPDO->target_position >> 0) & 0xFF;
-    *data_ptr++ = (rPDO->target_position >> 8) & 0xFF;
-    *data_ptr++ = (rPDO->target_position >> 16) & 0xFF;
-    *data_ptr++ = (rPDO->target_position >> 24) & 0xFF;
-
-    *data_ptr++ = (rPDO->target_velocity >> 0) & 0xFF;
-    *data_ptr++ = (rPDO->target_velocity >> 8) & 0xFF;
-    *data_ptr++ = (rPDO->target_velocity >> 16) & 0xFF;
-    *data_ptr++ = (rPDO->target_velocity >> 24) & 0xFF;
-
-    *data_ptr++ = (rPDO->target_torque >> 0) & 0xFF;
-    *data_ptr++ = (rPDO->target_torque >> 8) & 0xFF;
-
-    *data_ptr++ = (rPDO->operation_mode >> 0) & 0xFF;
-
-    *data_ptr++ = (rPDO->probe_function >> 0) & 0xFF;
-    *data_ptr++ = (rPDO->probe_function >> 8) & 0xFF;
-
-    *data_ptr++ = (rPDO->max_velocity >> 0) & 0xFF;
-    *data_ptr++ = (rPDO->max_velocity >> 8) & 0xFF;
-    *data_ptr++ = (rPDO->max_velocity >> 16) & 0xFF;
-    *data_ptr++ = (rPDO->max_velocity >> 24) & 0xFF;
-  
+#ifdef SHM_BIG_ENDIAN
+    RxPDO1t * newPDO = (RxPDO1t*) data_ptr;
+    reverse_byte_order_uint16(              &(newPDO->control_word)    );
+    reverse_byte_order_uint32( (uint32_t *) &(newPDO->target_position) );
+    reverse_byte_order_uint32( (uint32_t *) &(newPDO->target_velocity) );
+    reverse_byte_order_uint16( (uint16_t *) &(newPDO->target_torque)   );
+    /* -------- 这里有个 int8 的不需要转换  ---------*/
+    reverse_byte_order_uint16(              &(newPDO->probe_function)  );
+    reverse_byte_order_uint32(              &(newPDO->max_velocity)    );
 #endif
 }
 
@@ -74,7 +86,11 @@ typedef struct TxPDO1
 } TxPDO1t;
 #pragma pack(pop)
 
-void TxPDO1_copy_from(TxPDO1t *tPDO, uint8_t *data_ptr)
+/* ***************************************************
+ *  从小端(little-endian)存储空间, 拷贝数据到TxPDO中
+ * ***************************************************/
+/* --------------不再使用 -------------------
+void TxPDO1_copy_from_little(TxPDO1t *tPDO, uint8_t *data_ptr)
 {
 #ifndef SHM_BIG_ENDIAN   //SHM缓冲区数据为 Little-endian 存储的情况.
 
@@ -126,7 +142,30 @@ void TxPDO1_copy_from(TxPDO1t *tPDO, uint8_t *data_ptr)
     tPDO->digital_input_status |= (0x000000FF & *data_ptr++) << 16;
     tPDO->digital_input_status |= (0x000000FF & *data_ptr++) << 24;
 
-#endif
+
+}
+------------------- 以上不再使用----------------------------*/
+
+/* ***********************************************************************
+ *   拷贝TxPDO数据到新空间, 根据宏定义决定是否大小端(Little/Big-endian)转换!
+ * ***********************************************************************/
+void TxPDO1_copyTo(TxPDO1t *  tPDO,  void * data_ptr)
+{
+    memcpy( data_ptr, tPDO, sizeof(TxPDO1t) );
+
+#ifdef SHM_BIG_ENDIAN
+    TxPDO1t * newPDO = (TxPDO1t*) data_ptr;
+    reverse_byte_order_uint16(             &(newPDO->error_code)            );
+    reverse_byte_order_uint16(             &(newPDO->status_word)           );
+    reverse_byte_order_uint32( (uint32_t*) &(newPDO->current_position)      );
+    reverse_byte_order_uint16( (uint16_t*) &(newPDO->current_torque)        );
+    /* -------- 这里有个 int8 的不需要转换  ---------*/
+    reverse_byte_order_uint16(             &(newPDO->probe_status)          );
+    reverse_byte_order_uint32( (uint32_t*) &(newPDO->probe_up_edge_pos1)    );
+    reverse_byte_order_uint32( (uint32_t*) &(newPDO->probe_up_edge_pos2)    );
+    reverse_byte_order_uint32(             &(newPDO->digital_input_status)  );
+#endif    
+
 }
 
 
@@ -143,6 +182,5 @@ enum mode_of_operation_t
   CYCLIC_SYNCHRONOUS_VELOCITY = 9,   // Cyclic Synchronous Velocity Mode
   CYCLIC_SYNCHRONOUS_TORQUE = 10,    // Cyclic Synchronous Torque Mode
 };
-
 
 #endif  //#ifndef

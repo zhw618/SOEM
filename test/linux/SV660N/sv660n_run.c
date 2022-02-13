@@ -280,12 +280,13 @@ int stack_update(int32 * t_off)
     int wkc=0;
 
     /* 发出去data前, SHMAddr-->outputs 手动拷贝, 考虑大小端问题!! */
-    RxPDO1_copy_to(pRxPDO1, ec_slave[1].outputs );
+    RxPDO1_copyTo(pRxPDO1, ec_slave[1].outputs );
     ec_send_processdata();
 
     wkc += ec_receive_processdata(EC_TIMEOUTRET);
     /* 接收到data后, inputs-->SHMAddr 手动拷贝, 考虑大小端问题!! */
-    TxPDO1_copy_from(pTxPDO1, ec_slave[1].inputs );  
+    //TxPDO1_copy_from(pTxPDO1, ec_slave[1].inputs );  
+    TxPDO1_copyTo( (TxPDO1t*)(ec_slave[1].inputs), pTxPDO1 ); 
 
     ec_sync(ec_DCtime, t_cycle, t_off);
     return wkc;
