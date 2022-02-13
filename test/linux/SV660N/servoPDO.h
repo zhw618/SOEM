@@ -50,6 +50,8 @@ typedef struct RxPDO1
 } RxPDO1t;
 #pragma pack(pop)
 
+
+
 /* ********************************************************************
  *  拷贝RxPDO数据到新空间, 根据宏定义决定是否大小端(Little/Big-endian)转换!
  * ********************************************************************/
@@ -85,6 +87,47 @@ typedef struct TxPDO1
     uint32_t digital_input_status;  
 } TxPDO1t;
 #pragma pack(pop)
+
+
+/* ***********************************************************************
+ *   拷贝TxPDO数据到新空间, 根据宏定义决定是否大小端(Little/Big-endian)转换!
+ * ***********************************************************************/
+void TxPDO1_copyTo(TxPDO1t *  tPDO,  void * data_ptr)
+{
+    memcpy( data_ptr, tPDO, sizeof(TxPDO1t) );
+
+#ifdef SHM_BIG_ENDIAN
+    TxPDO1t * newPDO = (TxPDO1t*) data_ptr;
+    reverse_byte_order_uint16(             &(newPDO->error_code)            );
+    reverse_byte_order_uint16(             &(newPDO->status_word)           );
+    reverse_byte_order_uint32( (uint32_t*) &(newPDO->current_position)      );
+    reverse_byte_order_uint16( (uint16_t*) &(newPDO->current_torque)        );
+    /* -------- 这里有个 int8 的不需要转换  ---------*/
+    reverse_byte_order_uint16(             &(newPDO->probe_status)          );
+    reverse_byte_order_uint32( (uint32_t*) &(newPDO->probe_up_edge_pos1)    );
+    reverse_byte_order_uint32( (uint32_t*) &(newPDO->probe_up_edge_pos2)    );
+    reverse_byte_order_uint32(             &(newPDO->digital_input_status)  );
+#endif    
+
+}
+
+
+
+/* Mode of Operation */
+enum mode_of_operation_t
+{
+  NONE = 0,                          // None Mode
+  PROFILE_POSITION = 1,              // Profile Position Mode
+  PROFILE_VELOCITY = 3,              // Profile Velocity Mode
+  TORQUE_PROFILE = 4,                // Torque Profile Mode
+  HOMING = 6,                        // Homing Mode
+  CYCLIC_SYNCHRONOUS_POSITION = 8,   // Cyclic Synchronous Position Mode
+  CYCLIC_SYNCHRONOUS_VELOCITY = 9,   // Cyclic Synchronous Velocity Mode
+  CYCLIC_SYNCHRONOUS_TORQUE = 10,    // Cyclic Synchronous Torque Mode
+};
+
+#endif  //#ifndef
+
 
 /* ***************************************************
  *  从小端(little-endian)存储空间, 拷贝数据到TxPDO中
@@ -145,42 +188,3 @@ void TxPDO1_copy_from_little(TxPDO1t *tPDO, uint8_t *data_ptr)
 
 }
 ------------------- 以上不再使用----------------------------*/
-
-/* ***********************************************************************
- *   拷贝TxPDO数据到新空间, 根据宏定义决定是否大小端(Little/Big-endian)转换!
- * ***********************************************************************/
-void TxPDO1_copyTo(TxPDO1t *  tPDO,  void * data_ptr)
-{
-    memcpy( data_ptr, tPDO, sizeof(TxPDO1t) );
-
-#ifdef SHM_BIG_ENDIAN
-    TxPDO1t * newPDO = (TxPDO1t*) data_ptr;
-    reverse_byte_order_uint16(             &(newPDO->error_code)            );
-    reverse_byte_order_uint16(             &(newPDO->status_word)           );
-    reverse_byte_order_uint32( (uint32_t*) &(newPDO->current_position)      );
-    reverse_byte_order_uint16( (uint16_t*) &(newPDO->current_torque)        );
-    /* -------- 这里有个 int8 的不需要转换  ---------*/
-    reverse_byte_order_uint16(             &(newPDO->probe_status)          );
-    reverse_byte_order_uint32( (uint32_t*) &(newPDO->probe_up_edge_pos1)    );
-    reverse_byte_order_uint32( (uint32_t*) &(newPDO->probe_up_edge_pos2)    );
-    reverse_byte_order_uint32(             &(newPDO->digital_input_status)  );
-#endif    
-
-}
-
-
-
-/* Mode of Operation */
-enum mode_of_operation_t
-{
-  NONE = 0,                          // None Mode
-  PROFILE_POSITION = 1,              // Profile Position Mode
-  PROFILE_VELOCITY = 3,              // Profile Velocity Mode
-  TORQUE_PROFILE = 4,                // Torque Profile Mode
-  HOMING = 6,                        // Homing Mode
-  CYCLIC_SYNCHRONOUS_POSITION = 8,   // Cyclic Synchronous Position Mode
-  CYCLIC_SYNCHRONOUS_VELOCITY = 9,   // Cyclic Synchronous Velocity Mode
-  CYCLIC_SYNCHRONOUS_TORQUE = 10,    // Cyclic Synchronous Torque Mode
-};
-
-#endif  //#ifndef

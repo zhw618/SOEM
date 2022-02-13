@@ -78,33 +78,35 @@ void apply_new_value_to_big(int ord,RxPDO1t * pRxPDO1)
     int64_t value;
     scanf("%i", &value );
 
+    RxPDO1t RxPDO1_le2; //输入值的缓冲区
+
     switch(ord)
     {
         case 0: 
-            RxPDO1_le.control_word = value & 0x000000000000FFFF;
+            RxPDO1_le2.control_word = value & 0x000000000000FFFF;
             break;
         case 1: 
-            RxPDO1_le.target_position= value & 0x00000000FFFFFFFF;
+            RxPDO1_le2.target_position= value & 0x00000000FFFFFFFF;
             break;
         case 2: 
             //scanf("%i", & pRxPDO1->target_velocity );
-            RxPDO1_le.target_velocity = value & 0x00000000FFFFFFFF;
+            RxPDO1_le2.target_velocity = value & 0x00000000FFFFFFFF;
             break;
         case 3: 
             //scanf("%i", & pRxPDO1->target_torque );
-            RxPDO1_le.target_torque = value & 0x000000000000FFFF;
+            RxPDO1_le2.target_torque = value & 0x000000000000FFFF;
             break;
         case 4: 
             //scanf("%i", & pRxPDO1->operation_mode );
-            RxPDO1_le.operation_mode = value & 0x00000000000000FF;
+            RxPDO1_le2.operation_mode = value & 0x00000000000000FF;
             break;
         case 5: 
             //scanf("%i", & pRxPDO1->probe_function );
-            RxPDO1_le.probe_function = value & 0x000000000000FFFF;
+            RxPDO1_le2.probe_function = value & 0x000000000000FFFF;
             break;
         case 6: 
             //scanf("%i", & pRxPDO1->max_velocity );
-            RxPDO1_le.max_velocity = value & 0x00000000FFFFFFFF;
+            RxPDO1_le2.max_velocity = value & 0x00000000FFFFFFFF;
             break;
         default:
             printf("\nwrong order num.\n\n");
@@ -112,7 +114,7 @@ void apply_new_value_to_big(int ord,RxPDO1t * pRxPDO1)
     }
 
     //大小端转化后,再写出
-    RxPDO1_copyTo(&RxPDO1_le, pRxPDO1);
+    RxPDO1_copyTo(&RxPDO1_le2, pRxPDO1);
     printf("\n\n");
 }
 
@@ -126,6 +128,7 @@ void viewer_mode()
 
         //先将大端内容转化为小端
         RxPDO1_copyTo(pRxPDO1, &RxPDO1_le);
+        TxPDO1_copyTo(pTxPDO1, &TxPDO1_le);
 
         //显示转化后的小端值
         print_RxPDO(&RxPDO1_le);
